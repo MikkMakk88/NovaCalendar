@@ -2,3 +2,4 @@ cfg.py
 pdf_files/*
 development
 .DS_Store
+__pycache__

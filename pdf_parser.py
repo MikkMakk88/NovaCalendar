@@ -4,8 +4,6 @@
 import fitz # import PyMuPDF library (docs: https://pymupdf.readthedocs.io/en/latest/)
 import re
 
-#todo: I could try splitting the html strings if there are multiple spaces in them
-#todo: I need a slighty more sophisticated method of assigning the what, where and who
 
 def get_pos_data(data):
     """Receive an html document. 
@@ -76,6 +74,7 @@ def main(pathname, debug=False):
     html = page.getText("html")
     data = parse_html_data(html)
     days_pos, times_pos = get_pos_data(data)
+    period = re.search(r'">Period: w(\d{1,2})</', html).group(1)
     lesson_data = []
     for line in data:
         if line["TEXT"] == "09:00":
@@ -103,31 +102,42 @@ def main(pathname, debug=False):
     for i, line in enumerate(lesson_data):
         if not re.match(r"\d\d:\d\d", line["TEXT"]):
             added = False
+            text = line["TEXT"]
+            text_list = text.split()
+            text = ""
+            for i in range(len(text_list)):
+                if i == len(text_list) - 1:
+                    text += text_list[i]
+                elif len(text_list[i+1]) > 3:
+                    text += text_list[i] + ", "
+                else:
+                    text += text_list[i] + " "
             for lesson in lessons:
                 if line["DAY"] == lesson["DAY"] and line["START"] == lesson["WHEN_START"]:
-                    if i % 3 == 1:
-                        lesson["WHO"] = line["TEXT"]
-                    elif i % 3 == 2:
-                        lesson["WHERE"] = line["TEXT"]
+                    if lesson.get("INFO", 0):
+                        lesson["INFO"] += " " + text
+                    else:
+                        lesson["INFO"] = text
                     added = True
             if not added:
                 new_lesson = {}
-                new_lesson["WHAT"] = line["TEXT"]
+                new_lesson["LESSON"] = line["TEXT"]
                 new_lesson["WHEN_START"] = line["START"]
                 new_lesson["WHEN_END"] = line["END"]
                 new_lesson["DAY"] = line["DAY"]
                 lessons.append(new_lesson)
-
+    for lesson in lessons:
+        lesson["PERIOD"] = period
     if debug:
         print("")
-        # for k, v in days_pos.items():
-        #     print(k, v)
-        # print("")
-        # for k, v in times_pos.items():
-        #     print(k, v)
-        # print("")
-        # print(time_slots)
-        # print("")
+        for k, v in days_pos.items():
+            print(k, v)
+        print("")
+        for k, v in times_pos.items():
+            print(k, v)
+        print("")
+        print(time_slots)
+        print("")
         for line in lesson_data:
             print(line)
         print("")
@@ -136,11 +146,26 @@ def main(pathname, debug=False):
                 print(k, v)
             print("")
         pass
+    return lessons
+
+
+def display_lessons():
+    import subprocess, cfg
+    s = subprocess.check_output(["ls {}".format(cfg.PDF_FOLDER)], shell=True)
+    s = s.decode()
+    s = s.strip("\n")
+    pdfs = s.split("\n")
+    for pdf in pdfs:
+        fullpath = cfg.PDF_FOLDER + "/" + pdf
+        for lessons in main(fullpath):
+            for k, v in lessons.items():
+                print(k + (len(k)%2)*" " + (7-int(len(k)/2)-(len(k)%2)) * ". " + v)
+            print("\n")
 
 
 if __name__ == "__main__":
     folder = "pdf_files"
-    filename = "schedulegenerator.pdf"
-    # filename = "document.pdf"
+    # filename = "schedulegenerator.pdf"
+    filename = "document.pdf"
     fullpath = folder + "/" + filename
     main(fullpath, debug=True)
