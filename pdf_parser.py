@@ -74,7 +74,6 @@ def main(pathname, debug=False):
     html = page.getText("html")
     data = parse_html_data(html)
     days_pos, times_pos = get_pos_data(data)
-    period = re.search(r'">Period: w(\d{1,2})</', html).group(1)
     lesson_data = []
     for line in data:
         if line["TEXT"] == "09:00":
@@ -126,6 +125,8 @@ def main(pathname, debug=False):
                 new_lesson["WHEN_END"] = line["END"]
                 new_lesson["DAY"] = line["DAY"]
                 lessons.append(new_lesson)
+    # add period data to lessons
+    period = re.search(r'">Period: w(\d{1,2})</', html).group(1)
     for lesson in lessons:
         lesson["PERIOD"] = period
     if debug:
